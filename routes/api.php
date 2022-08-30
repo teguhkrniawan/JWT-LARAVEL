@@ -2,6 +2,7 @@
 
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BpsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -23,4 +24,6 @@ Route::group([
 
 ], function ($router) {
     Route::post('login', [AuthController::class,  'login']) ;
+    Route::post('register', [AuthController::class,  'register']) ;
+    Route::get('data', [BpsController::class,  'all_data']) ;
 });

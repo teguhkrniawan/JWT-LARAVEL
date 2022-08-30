@@ -20,7 +20,7 @@ class User extends Authenticatable implements JWTSubject
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'level'
+        'name', 'email', 'password', 'level', 'token', 'status_aktif'
     ];
 
     /**
@@ -29,7 +29,7 @@ class User extends Authenticatable implements JWTSubject
      * @var array
      */
     protected $hidden = [
-        'password'
+        'password', 'token', 'level', 'status_aktif'
     ];
 
     const CREATED_AT = 'created_at';

@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -17,7 +21,7 @@ class AuthController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login']]);
+        $this->middleware('auth:api', ['except' => ['login', 'register']]);
     }
 
     /**
@@ -33,30 +37,91 @@ class AuthController extends Controller
             'password'  => 'required'
         ]);
 
-        if($validator->fails()){
+        if ($validator->fails()) {
             return response()->json($validator->errors(), 422);
         }
 
         $credentials = $request->only('email', 'password');
 
-        if(!$token = JWTAuth::attempt($credentials)){
+        if (!$token = JWTAuth::attempt($credentials, [
+            'exp' => Carbon::now()->addYears(1)->timestamp
+        ])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Identitas tidak terdaftar dengan kami'
+                'message' => 'Identitas tersebut tidak terdaftar dengan layanan kami'
             ], 401);
         }
 
-        return response()->json([
-            'success' => true,
-            'data_user' => auth()->user(),
-            'token' => $token
+        try {
+
+            $status_aktif = DB::table('users')
+                ->where('email', request('email'))
+                ->where('status_aktif', 1)
+                ->first();
+
+            if ($status_aktif) {
+                DB::table('users')
+                    ->where('email', request('email'))
+                    ->update([
+                        'token' => $token
+                    ]);
+                return response()->json([
+                    'success' => true,
+                    'data_user' => auth()->user(),
+                    'token' => $token
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => "Account expired"
+            ]);
+
+
+        } catch (\Throwable $th) {
+            return response()->json([
+                'success' => false,
+                'message' => $th->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * funcion register
+     */
+    public function register(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email'     => 'required|unique:users',
+            'password'  => 'required',
+            'name'      => 'required',
+            'level'     => 'required'
         ]);
 
-        // if (! $token = auth()->attempt($credentials)) {
-        //     return response()->json(['error' => 'Unauthorized'], 401);
-        // }
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
 
-        // return $this->respondWithToken($token);
+        try {
+            $user = new User();
+            $user->name = request('name');
+            $user->email = request('email');
+            $user->password = Hash::make(request('password'));
+            $user->level = request('level');
+            $user->status_aktif = 0;
+
+            $user->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Berhasil melakukan pendaftaran"
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'success' => false,
+                'message' => $th->getMessage()
+            ]);
+        }
     }
 
     /**
